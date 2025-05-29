@@ -1,6 +1,6 @@
 ---
 title: "通俗讲讲Qwen的Parallel Scaling，如何通过平行计算量来提升性能"
-date: 2025-05-22
+date: 2025-05-23
 categories: ["实战", "教程"]
 tags: [llm, grpo, openr1]
 ---
