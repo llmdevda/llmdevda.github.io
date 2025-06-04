@@ -9,9 +9,9 @@ tags: [llm, grpo, openr1]
 
 在之前的文章里，提到过DeepSeekR1的GRPO是如何通过增加CoT做到思辨的。
 
-而后我发现loss的实现和论文里的公式不一致。
+**而后我发现loss的实现和论文里的公式不一致。**
 
-实验表现也不一样，open r1的grpo无法提升CoT的。
+**实验表现也不一样，open r1的grpo无法提升CoT的。**
 
 深入代码就能发现是loss的实现和预想的不一样。
 
@@ -19,8 +19,7 @@ tags: [llm, grpo, openr1]
 
 而sample level的loss能提升CoT的长度。
 
-trl 里提供了3个loss实现
-grpo, bnpo和dr_grpo
+trl 里提供了3个loss实现 grpo, bnpo和dr_grpo
 
 ```py
 if self.loss_type == "grpo":
@@ -33,7 +32,7 @@ elif self.loss_type == "dr_grpo":
 
 无论是token level loss还是sentence或者sample level的loss，毫无疑问都是能对模型产生好的影响的。
 
-所以这里我只关注一下loss如何影响CoT长度。
+**所以这里我只关注一下loss如何影响CoT长度。**
 
 而且不关心是否符合公式，纯从代码分析其影响。
 
@@ -53,7 +52,7 @@ shape是BatchSizex生成token数量。
 
 completion_mask用于处理不同长度的生成。
 
-简单说，per_token_loss就是生成的每个token的相对概率，乘这个token的那句话的最终成绩。
+**简单说，per_token_loss就是生成的每个token的相对概率，乘这个token的那句话的最终成绩。**
 
 相同token在不同的答案里，概率可能相同，但因为成绩以及前文token不同，这里它们实际梯度下降时的效果也是不相同的。
 
