@@ -5,19 +5,23 @@ categories: ["原理", "Agent", "Workflow"]
 tags: [llm, agent]
 ---
 
-Junie是JetBrain最新推出的代码Agent——对标Cursor。
+# JetBrain 的 Junie
 
-此前JetBrain的AI Assistant是对标Copliet的。
+> 我一直爱用Jetbrain的IDE。但必须承认此前它在AI Code上做的不是最优秀的。直到最近发布的Junie，社区有提到Junie的某些体验超越了Cursor。最近正好在学Agent，于是想着来挖一下Junie的实现机制。
 
-在对标Copliet的AI Assistant中，更多是预测编码。最早的Prompt是理解代码以及编写代码的。
+**Junie 是 JetBrains 最新推出的代码 Agent —— 对标 Cursor**
 
-它的Prompt类似下面这样：
+此前 JetBrains 的 **AI Assistant** 是对标 Copilot 的。
+
+在这个对标 Copilot 的 AI Assistant 中，更多是**预测编码**。最早的 Prompt 是用来理解代码和写代码的。
+
+它的 Prompt 长这样：
 
 ```xml
-你是一个java开发者，有如下java类定义
+你是一个 Java 开发者，有如下 Java 类定义：
 class A, class B...
 你觉得需要在如下部分插入相关代码吗？
-用Yes或者No回答是否需要插入
+用 Yes 或 No 回答是否需要插入，
 如果需要插入，插入的代码是...
 
 ``java
@@ -28,108 +32,118 @@ class A, class B...
 ``
 ```
 
-这是AI Copliet最早的形式。
+这是 AI Copilot 最早的用法。
 
-采用这种形式，是因为当时的LLM能力限制。
+之所以这么设计，是因为当时的 LLM 能力有限。
 
-那时，两年前的LLM，其通用能力和指令跟随能力较弱，但仿写能力很强。
+那时候的模型（大概两年前），**泛化和指令理解能力还很弱，但仿写能力不错**，所以主要还是做代码生成。
 
-因此功能聚焦于代码生成上。
 
-两年后，LLM的能力有了飞跃式的提升。主要是指令跟随和更长的上下文。
+两年后，LLM 能力有了飞跃
 
-简单看看Junie
+主要体现在：
+
+* **指令跟随能力更强**
+* **支持更长的上下文**
+
+
+## 简单看看 Junie
 
 ![](/assets/images/2025-06-10-Junie的Agent工作机制-Junie的运行示意图.png)
 
+左边是 PLAN（计划），右边是每一步 Step（步骤）。
 
-左边是PLAN计划，右边是完成的步骤Step。
+每个用户的问题，会被当成一个 Task（任务）。
 
-每个用户的提问，作为一个任务Task。
+**Junie 会把任务拆成多个 Plan 的 Step，然后按顺序完成**。
 
-Junie会将任务拆分成多个Plan的Step，然后去顺序完成它。
+整体看，这可能更像是一个Workflow。
 
-严格来说，这个大流程更属于Workflow而非Agent。
+但在每个 Step 的具体执行中，其实是用了 Agent 与 Tool 的交互的。
 
-但在每个具体Step的执行过程中，可能是用了Agent的。
+Step 执行时，会用到工具调用和人机交互。比如某个命令跑不通，它会换成别的命令，再问用户要不要执行新的，或者跳过。
 
-在Step执行中，会用到工具和人机交互。如果某个命令执行被卡死，会修改成其他命令，询问用户是否要执行新的命令或者跳过。
+比如它执行这个命令时：
 
-比如Junie在执行下面命令时
 ```bash
 uv add pytorch, numpy, python-opencv
 ```
-uv报错超时在安装python-opencv
 
-它会根据当前的已完成情况，重新规划新的指令
+uv 安装 `python-opencv` 超时报错，
+
+它就会根据当前执行进度，重新生成新的命令推荐：
 
 ![](/assets/images/2025-06-10-Junie的Agent工作机制-Junie推荐新的指令.png)
 
-所以Junie的实现中
 
-大的规划是Workflow的（Orchestrator-workers模式）
+## Junie 的两种规划
 
-小的规划是Agent的（对应每个Step）
+* 大的规划是偏 Workflow 的（像Orchestrator模式）
+* 小的每一步是 Agent 的（每个 Step）
 
-不过如果认为Plan的过程也可以看做Agent的话，大的规划也可以视为Agent，当Workflow复杂到一定程度，Workflow和Agent的界限也许也就模糊了。这里我们就不纠结具体的定义了。
+**如果我们愿意把 Plan 的过程也看成 Agent，那么大的规划也可以算是 Agent。**
 
-可见Plan的过程非常重要，基本决定了整个任务的走向。
-
-Plan的框架大体是“观察”->“行为”->“校验”。
-
-首先根据用户打开过的文件，操作过的指令，以及最近修改过的文件，来分析需要哪些文件信息。
+其实当 Workflow 足够复杂，**Workflow 和 Agent 的边界也就不那么清晰了**。这里就不深究术语了。
 
 
-比如我图片中的任务`add dot env load in env.py`
+## **Plan 过程非常关键，基本决定了整个任务的走向**
 
-就会去打开.env file和env.py的文件。
+Plan 的基本流程是三步：
 
-不过打开的步骤是通过Step去完成的。
-
-这个观察（observations）非常重要
-
-可以说模型本身能力以外，最重要的就是合适的上下文信息。
-
-而观察就是搜索这种信息的过程。
-
-在复杂工程中，如何保证这种搜索精确性比较重要。但我还没尝试过用于比较大的代码工程。
-
-而后将有用信息提交回，继续根据Plan去实现下一个Step
-
-每次Prompt里都包含前一个Step和整体Plan。
-
-所以Junie的大致思路就是
-
-根据IDE的环境上下文，制定计划
-
-计划主要由观察，执行，校验三个步骤组成
-
-每次步骤的执行Prompt都会包括上一次Step的结果以及整个Plan的所有Step。
-
-每个步骤的结果会包括思考以及执行指令，比如打开文件，或者修改文件。
-
-如果步骤出现错误或者无法执行，会重新检查状态来设定新的执行命令。
-
-最后将整个修改情况告知用户。
+* **观察**
+* **执行**
+* **校验**
 
 
+### 观察
 
-关于Plan修改
+Junie 会根据用户打开过的文件、输入过的指令、最近改动过的代码，去判断需要哪些上下文信息。
 
-如果在实际执行中，发现Plan有很大问题，会修改原始Plan吗？
+比如我图中的任务 `add dot env load in env.py`，
 
-我目前还没有发现有太大的Plan修改情况，但出现过Plan的补充情况。
+它会去打开 `.env` 文件和 `env.py` 文件。
 
-一个Step会在原有Plan里加入新的子Plan。
-
-比如修改xxx文件，会在打开文件后，出现一些子Plan
-
-为修改imports 修改function 之类的。
-
-我认为Plan里已经执行的部分不会改变，但还未执行以及正在执行的Step可能变化。
+这些“打开文件”的动作，就是通过 Step 去执行的。
 
 
+### **观察（observation）这一环节非常关键。**
 
+可以说，**除了模型本身能力外，最重要的就是有没有拿到对的上下文**。
+
+而观察，就是去找这些信息的过程。
+
+在复杂项目中，怎么提高这类信息搜索的准确度，会变得很重要。但我还没在特别大的项目上试过。
+
+接下来就是把有用的信息送回去，继续按 Plan 执行下一个 Step。
+
+每次 Prompt 里都会包含：
+
+* 上一个 Step 的结果
+* 当前整个 Plan 的所有 Step
+
+
+## **Junie 的大致逻辑是：**
+
+1. 根据 IDE 环境生成计划
+2. Plan 分为观察 → 执行 → 校验
+3. 每个 Step 的 Prompt 会带上前一个 Step 的输出 + 整体 Plan
+4. 每一步的执行包括思考过程、操作命令（比如打开/修改文件）
+5. 如果出错，会重新检测状态，换个命令再执行
+6. 最后把所有修改反馈给用户
+
+
+## Plan 会被修改吗？
+
+如果中途发现 Plan 问题很大，会回头改 Plan 吗？
+
+目前来看，**没见过大规模的 Plan 重写，但有补充 Plan 的情况**。
+
+比如某个 Step 需要改 xxx 文件，打开文件后，系统会自动加一些子 Plan，比如：
+
+* 改 imports
+* 改 function
+
+**我的理解是：已经执行的 Plan 不会变，未执行或正在执行的 Step 可能会变动。**
 
 
 
