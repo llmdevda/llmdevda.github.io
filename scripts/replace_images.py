@@ -19,6 +19,15 @@ def main():
     file_path = sys.argv[1]
     prefix = sys.argv[2]
 
+    if prefix == "raw":
+        prefix = "https://raw.githubusercontent.com/llmdevda/llmdevda.github.io/refs/heads/main/"
+
+    if prefix == "io":
+        prefix = "https://llmdevda.github.io/"
+
+    if prefix == "jsdelivr":
+        prefix = "https://cdn.jsdelivr.net/gh/llmdevda/llmdevda.github.io@main/"
+
     if not Path(file_path).is_file():
         print(f"文件未找到: {file_path}")
         sys.exit(1)
