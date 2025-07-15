@@ -23,6 +23,9 @@ AudioCoT是Qwen为ThinkSound引入的数据集，它在原有的视频音频文�
 
 音频-文本 AudioSet，Freesound，AudioCaps，BBC Sound Effects
 
+### VGGSound
+来源 Youtube 的短片段，有309个分类
+https://huggingface.co/datasets/Loie/VGGSound
 
 
 
