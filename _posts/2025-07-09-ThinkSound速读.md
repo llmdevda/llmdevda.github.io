@@ -9,18 +9,23 @@ ThinkSound目标在利用推理来优化声音的生成。
 
 通过推理来判别某个声音是否合理。
 
-依旧是物理第一性原理，模型的训练方式+训练集决定了模型能力。
+<video width="320" height="240" controls>
+  <source src="/assets/images/2025-07-09-ThinkSound速读-demo.mp4" type="video/mp4">
+</video>
+
+
+**依旧是物理第一性原理，模型的训练方式+训练集决定了模型能力。**
 
 先看训练集
 
 # 训练集
-AudioCoT是Qwen为ThinkSound引入的数据集，它在原有的视频音频文本数据集中，添加CoT的推理文本。
+AudioCoT是ThinkSound引入的数据集，它在原有的视频音频文本数据集中，添加CoT的推理文本。
 
 它利用下列数据集来生成CoT
 
-视频-音频 VGGSound，AudioSet
+**视频-音频 VGGSound，AudioSet**
 
-音频-文本 AudioSet，Freesound，AudioCaps，BBC Sound Effects
+**音频-文本 AudioSet，Freesound，AudioCaps，BBC Sound Effects**
 
 
 ### AudioSet
@@ -87,7 +92,7 @@ AudioCoT是ThinkSound这次自己创建的数据集，不过查资料时发现�
 
 # 结构与训练方式
 
-ThinkSound是一个工作流Pipeline，而不是一个单个模型。
+**ThinkSound是一个工作流Pipeline，而不是一个单个模型。**
 
 ![](/assets/images/2025-07-09-ThinkSound速读-ThinkSound结构.png)
 
@@ -97,19 +102,50 @@ ThinkSound是一个工作流Pipeline，而不是一个单个模型。
 
 流匹配（Flow Matching）是一种生成模型，相比于传统方法的扩散模型（Diffusion Model），有一些速度上的优势。
 
-但这里我们不关心模型结构细节这种很玄学的东西，我们重点看一下都平塞了什么数据。
+但这里我们不关心模型结构细节这种很玄学的东西，我们重点看一下都塞了什么数据。
 
 首先是推理模型，基于VideoLLaMA2
 
-然后是生成模型这一块，除去视频
+![](/assets/images/2025-07-09-ThinkSound速读-VideoLLaMA2.png)
+
+在原本VideoLLaMA2的视音与指令之外，还提供了CoT(s)和Caption的输入。
+注意这里的CoT(s)不是输出的那个CoT，而是输入的部分。它更像一种对CoT的指令。
+
+CoT(s)的例子:
+```txt
+Caption: plastic bottle crushing
+字幕：塑料瓶破碎
+
+Start with the sound of crushing plastic bottles, including crinkling and crunching. Add background noise resembling a factory environment, with machinery sounds. Incorporate subtle rustling and paper crinkling to suggest manipulation of plastic items.
+
+先听塑料瓶破碎的声音，包括起皱和嘎吱嘎吱的声音。添加类似工厂环境的背景噪音，加上机器的声音。结合细微的沙沙声和纸张的褶皱来暗示对塑料物品的操作。
+```
+
+然后是生成模型这一块，视频用CLIP做了处理，并且其特征不光用于输入，还与时间戳一起被传递到每一层
 
 ![](/assets/images/2025-07-09-ThinkSound速读-FlowMatching结构.png)
 
+通过这样结合时间戳与视频特征的方式，保证了音频卡点的准确性。
 
+从代码可以看到，是时间信息的embedding直接与特征相加得到的全局信息
+
+![](/assets/images/2025-07-09-ThinkSound速读-代码.png)
 
 
 
 # 总结
+
+ThinksSound是一个工作流，用于给视频生成合适的音效。
+
+在AIGC领域是很有价值的。
+
+**它通过声音推理，让模型自动产生基于画面的合理声音。**
+
+不过其声音推理聚焦于现实推理，训练集也多来源于自然声音，所以对于短视频或者综艺的效果音而言，可能表现并不理想
+
+
 作者说会在之后提供12GB的模型，期待
 https://github.com/FunAudioLLM/ThinkSound/issues/15#issuecomment-3047104281
+
+![](/assets/images/2025-07-09-ThinkSound速读-12G.png)
 
